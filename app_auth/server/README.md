@@ -1,0 +1,1 @@
+This package will contain the server side of the app (developed in PHP)

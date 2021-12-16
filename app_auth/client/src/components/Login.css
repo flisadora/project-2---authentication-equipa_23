@@ -1,0 +1,26 @@
+h1.form-title { 
+    font-size: 60px;
+    text-shadow: 1px 1px 1px #fff;
+    font-family: Harry Potter;
+    text-align: center;
+    color: #000;
+}
+
+.continue-link {
+    text-align: center;
+    text-decoration: none!important;
+    font-size: 20px;
+    font-family: Harry Potter;
+    color: #000;
+}
+
+.continue-link:hover {
+    color: #fff;
+}
+
+.form-controls {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+}
