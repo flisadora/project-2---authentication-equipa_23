@@ -1,0 +1,13 @@
+#
+# Visual Studio Code
+#
+.settings/
+.classpath
+.factorypath
+.project
+.vscode/
+
+#Ignore DS_Store files on mac
+.DS_Store
+
+.idea

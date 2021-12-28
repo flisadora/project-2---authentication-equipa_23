@@ -17,3 +17,7 @@ Utilizando o xampp:
 Na pasta client de cada uma das apps:
 1. `npm install`
 2. `npm start`
+
+## UAP
+É necessário ter CherryPy instalado
+`python3 uap.py`
