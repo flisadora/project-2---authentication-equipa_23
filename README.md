@@ -19,5 +19,5 @@ Na pasta client de cada uma das apps:
 2. `npm start`
 
 ## UAP
-É necessário ter CherryPy instalado
+É necessário ter CherryPy e Jinja2 instalado
 `python3 uap.py`

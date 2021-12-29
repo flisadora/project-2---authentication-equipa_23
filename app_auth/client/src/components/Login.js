@@ -14,41 +14,41 @@ function Login({ onSuccess }) {
 
     if (error) return;
 
-    const body = {
-      email: e.target[0].value,
-      password: e.target[1].value,
-    };
-    console.log(body);
+    // const body = {
+    //   email: e.target[0].value,
+    //   password: e.target[1].value,
+    // };
+    // console.log(body);
 
-    const requestOptions = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    };
-    const resp = await fetch(
-      "http://localhost:8080/server/login.php",
-      requestOptions
-    );
+    // const requestOptions = {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify(body),
+    // };
+    // const resp = await fetch(
+    //   "https://localhost:8080/server/login.php",
+    //   requestOptions
+    // );
 
-    console.log(resp);
-    const json = await resp.json();
-    console.log(json);
+    // console.log(resp);
+    // const json = await resp.json();
+    // console.log(json);
 
-    // The following code evaluates if the loggin is succesful or not (according to json's response)
-    const status = json.loggedin;
+    // // The following code evaluates if the loggin is succesful or not (according to json's response)
+    // const status = json.loggedin;
 
-    if (status) {
-      // From JSON's response : example
-      const store = {
-        username: json.username,
-        role: json.role,
-      };
-      localStorage.setItem("user", JSON.stringify(store));
-      onSuccess(store.username);
-      history.push("/characters");
-    } else {
-      setError(true);
-    }
+    // if (status) {
+    //   // From JSON's response : example
+    //   const store = {
+    //     username: json.username,
+    //     role: json.role,
+    //   };
+    //   localStorage.setItem("user", JSON.stringify(store));
+    //   onSuccess(store.username);
+    //   history.push("/characters");
+    // } else {
+    //   setError(true);
+    // }
   }
 
   function handleChange() {
@@ -69,7 +69,7 @@ function Login({ onSuccess }) {
     >
       <Card.Body>
         <Form onSubmit={handleSubmit}>
-          <h1 className="form-title">Login</h1>
+          {/* <h1 className="form-title">Login</h1>
           <p></p>
           <p></p>
           <Form.Group className="mb-3" controlId="formBasicEmail">
@@ -92,12 +92,13 @@ function Login({ onSuccess }) {
             <p style={{ color: "red", fontWeight: "bold" }}>
               Your credentials aren't correct!
             </p>
-          )}
+          )} */}
           <div className="form-controls">
             <Button
               style={{ width: "5rem", marginLeft: "35%" }}
               variant="dark"
               type="submit"
+              href="https://localhost:8443"
             >
               Login
             </Button>
