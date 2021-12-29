@@ -6,6 +6,8 @@ class UAP(object):
     def index(self):
         f = open('passwords.json')
         passwords = json.load(f)
+
+        choosen_credentials = 0
         r = """
         <!DOCTYPE html>
         <html lang="en">
@@ -19,7 +21,29 @@ class UAP(object):
 
             <title>This is the title of the webpage!</title>
         </head>
+        <script>
+            var active_tab="0";
+            function saveCredentials(){
+                var dns = document.getElementById("dns"+active_tab).innerHTML;
+                var username = document.getElementById("username"+active_tab).innerHTML;
+                var email = document.getElementById("email"+active_tab).innerHTML;
+                var pw = document.getElementById("password"+active_tab).value;
+
+                credentials(email, pw);
+
+                var json = {"email": email, "password": pw};
+                console.log(json)
+                console.log(JSON.stringify(json))
+                var obj =JSON.stringify(json);
+            }
+            function activeTab(i){
+                active_tab=i;
+                console.log(active_tab);
+            }
+        </script>
         <body>
+
+            
 
             <div class="container mt-3">
                 <p>This is an example paragraph. Anything in the <strong>body</strong> tag will appear on the page, just like this <strong>p</strong> tag and its contents.</p>
@@ -32,7 +56,7 @@ class UAP(object):
         for i, credentials in enumerate(passwords):
             if i == 0:
                 r += """
-                                <a class="list-group-item list-group-item-action active" id="list-""" + str(i) + """-list" data-toggle="list" href="#list-""" + str(i) + """"" role="tab" aria-controls="home">
+                                <a class="list-group-item list-group-item-action active" id="list-""" + str(i) + """-list" data-toggle="list" href="#list-""" + str(i) + """"" role="tab" aria-controls="home" onclick="activeTab("""+str(i)+""")">
                                     <div class="d-flex w-100 justify-content-between">
                                         """ + credentials["dns"] + """
                                     </div>
@@ -40,40 +64,40 @@ class UAP(object):
                                 </a>
                 """
                 c += """
-                            <div class="tab-pane fade show active" id="list-""" + str(i) + """"" role="tabpanel" aria-labelledby="list-""" + str(i) + """"-list>
+                            <div class="tab-pane fade show active" id="list-""" + str(i) + """"" role="tabpanel" aria-labelledby="list-""" + str(i) + """"-list >
                                 <div class="list-group mb-3">
                                     <div class="list-group-item">
                                         <div class="d-flex w-100 justify-content-between">
                                             <small>Name</small>
                                         </div>
-                                        """ + credentials["dns"] + """
+                                        <div id="dns0">""" + credentials["dns"] + """</div>
                                     </div>
                                     <div class="list-group-item">
                                         <div class="d-flex w-100 justify-content-between">
                                             <small>Username</small>
                                         </div>
-                                        """ + credentials["username"] + """
+                                        <div id="username0">""" + credentials["username"] + """</div>
                                     </div>
                                     <div class="list-group-item">
                                         <div class="d-flex w-100 justify-content-between">
                                             <small>Email</small>
                                         </div>
-                                        """ + credentials["email"] + """
+                                        <div id="email0">""" + credentials["email"] + """</div>
                                     </div>
                                     <div class="list-group-item">
                                         <div class="d-flex w-100 justify-content-between">
                                             <small>Password</small>
                                         </div>
-                                        <input type="password" class="form-control" id="exampleInputPassword1" value=\"""" + credentials["password"] + """" readonly>
+                                        <input type="password" class="form-control" id="password0" value=\"""" + credentials["password"] + """" readonly>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-primary">Login</button>
+                                <button type="submit" class="btn btn-primary" onclick="saveCredentials()">Login</button>
                             </div>
 
                 """
             else:
                 r += """
-                                <a class="list-group-item list-group-item-action" id="list-""" + str(i) + """-list" data-toggle="list" href="#list-""" + str(i) + """"" role="tab" aria-controls="home">
+                                <a class="list-group-item list-group-item-action" id="list-""" + str(i) + """-list" data-toggle="list" href="#list-""" + str(i) + """"" role="tab" aria-controls="home" onclick="activeTab("""+str(i)+""")">
                                     <div class="d-flex w-100 justify-content-between">
                                         """ + credentials["dns"] + """
                                     </div>
@@ -87,28 +111,28 @@ class UAP(object):
                                         <div class="d-flex w-100 justify-content-between">
                                             <small>Name</small>
                                         </div>
-                                        """ + credentials["dns"] + """
+                                        <div id="dns"""+str(i)+"""">""" + credentials["dns"] + """</div>
                                     </div>
                                     <div class="list-group-item">
                                         <div class="d-flex w-100 justify-content-between">
                                             <small>Username</small>
                                         </div>
-                                        """ + credentials["username"] + """
+                                        <div id="username"""+str(i)+"""">""" + credentials["username"] + """</div>
                                     </div>
                                     <div class="list-group-item">
                                         <div class="d-flex w-100 justify-content-between">
                                             <small>Email</small>
                                         </div>
-                                        """ + credentials["email"] + """
+                                        <div id="email"""+str(i)+"""">""" + credentials["email"] + """</div>
                                     </div>
                                     <div class="list-group-item">
                                         <div class="d-flex w-100 justify-content-between">
                                             <small>Password</small>
                                         </div>
-                                        <input type="password" class="form-control" id="exampleInputPassword1" value=\"""" + credentials["password"] + """" readonly>
+                                        <input type="password" class="form-control" id="password""" + str(i) + """" value=\"""" + credentials["password"] + """" readonly>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-primary">Login</button>
+                                <button type="button" class="btn btn-primary" onclick="saveCredentials()">Login</button>
                             </div>
 
                 """
@@ -150,11 +174,15 @@ class UAP(object):
         </html>
         """
 
+        # send to server
+
 # TODO: ask password
 # TODO: encrypt data with password and salt
 # TODO: button to add login (como se fossemos fazer login no site original)
 
         return r
+
+        
 if __name__ == '__main__':
     cherrypy.config.update({'server.socket_port': 8443})
     cherrypy.quickstart(UAP())

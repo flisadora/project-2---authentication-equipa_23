@@ -10,7 +10,7 @@ header("Content-Type: text/html; charset=utf-8");
     // johny_03: AvadaKedravaBellatrix
     // lilimarta74: AvadaKedravaBellatrix88
 
-function login($conn) {
+function login($conn, $msg) {
     $res = array();
     
     // not successfull connection
@@ -22,6 +22,18 @@ function login($conn) {
     }
     // successfull connection
     
+    if ($msg['diffie']){
+
+    }elseif ($msg['email'] && $msg['password']){
+
+    }elseif ($msg['key']){
+        
+    }elseif ($msg['response']){
+        
+    }elseif ($msg['authenticated']){
+        
+    }
+
     // get login information
     $JSONData = file_get_contents("php://input");
     $dataObject = json_decode($JSONData);
@@ -84,10 +96,13 @@ function login($conn) {
     return json_encode($res);
 }
 
+// connect to UAP
+$msg = {'hello': 123}
+
 // connect to DB
 $conn = connectDB();
 
-echo login($conn);
+echo login($conn, $msg);
 
 mysqli_close($conn);
 ?>
