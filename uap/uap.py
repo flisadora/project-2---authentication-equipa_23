@@ -1,6 +1,8 @@
 import cherrypy
 from cherrypy.lib import auth_digest
 import json
+import requests
+from random import randint
 from jinja2 import Environment, FileSystemLoader
 env = Environment(loader=FileSystemLoader('templates'))
 
@@ -38,22 +40,81 @@ class UAP(object):
     @cherrypy.expose
     @cherrypy.tools.allow(methods=('POST'))
     def submit_credentials(self, dns, username, email, password):
-
         #ciclo com mensagens
         
         #diffie
-
+        self.startDiffieHellman()
         #hello
-        hellomsg = {"email": email}
-        hellomsg = json.dumps(hellomsg)
+        self.hello(email)
+        #challenge
+        self.challenge(password)
+        
+        
 
         #send response to challege
+        tmpl = env.get_template('authentication.html')
+        return tmpl.render()
+
+    @cherrypy.expose
+    def startDiffieHellman(self):
+        # prime number
+        P = 23
+        # base
+        G = 5
         
+        temp_private_key = randint(2, P)
+        print(temp_private_key)
+
+        # shared key by UAP and app server
+        public_key =  int(pow(G,temp_private_key, P))
+
+        # POST request
+        req_json = json.dumps({'diffieHellman' : public_key})
+
+        post_request = requests.post('http://localhost:8080/server/login.php', data = req_json)
+        print(post_request)
+
+        # GET request
+        # get_request = requests.get('http://localhost:8080/server/login.php')
+        # resp_json = get_request.json()['form']
+
+        # # uap private key
+        # private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
+        return req_json
+
+    @cherrypy.expose
+    def hello(self, email):
+        hellomsg = json.dumps({"email": email})
+
+        post = requests.post('http://localhost:8080/server/login.php', data = hellomsg)
+        print("POST", post)
+
         return hellomsg
+    
+    @cherrypy.expose
+    def challenge(self, password):
+        c = 0
+        password=''
+        while c<len(password):
+            get = requests.get('http://localhost:8080/server/login.php')
+            get_json = get.json()
+
+            # {'key': … } 
+            key = get_json['key']
+            # do challenge with key
+            # TODO
+            chall_resp = key
+            chall_resp_msg = json.dumps({"response": chall_resp})
+
+            post = requests.post('http://localhost:8080/server/login.php', data = chall_resp_msg)
+            
+            # c = len(password) / len(chall ??)
+            c+=1      #temporary
+        return 'Authentication Done'
+
+
+
         
-
-        # send to server
-
 # TODO: ask password
 # TODO: encrypt data with password and salt
 
