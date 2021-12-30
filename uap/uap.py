@@ -62,7 +62,6 @@ class UAP(object):
     
 
 async def challenge(email, password):
-    c = 0
 
     hellomsg = {"email": email}
 
