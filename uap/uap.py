@@ -45,9 +45,9 @@ class UAP(object):
         #diffie
         self.startDiffieHellman()
         #hello
-        self.hello(email)
-        #challenge
-        self.challenge(password)
+        # self.hello(email)
+        # #challenge
+        # self.challenge(password)
         
         
 
@@ -69,17 +69,21 @@ class UAP(object):
         public_key =  int(pow(G,temp_private_key, P))
 
         # POST request
-        req_json = json.dumps({'diffieHellman' : public_key})
+        req_json = {'diffieHellman' : public_key}
+        print(req_json)
 
-        post_request = requests.post('http://localhost:8080/server/login.php', data = req_json)
-        print(post_request)
+        post_request = requests.post(url = 'http://localhost:8080/server/login.php', data = req_json)
+        #json1 = post_request
+        #print(post_request.url)
+        print(post_request.text)
 
         # GET request
-        # get_request = requests.get('http://localhost:8080/server/login.php')
+        get_request = requests.get('http://localhost:8080/server/login.php')
+        print("GET", get_request)
         # resp_json = get_request.json()['form']
 
-        # # uap private key
-        # private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
+        # uap private key
+        #private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
         return req_json
 
     @cherrypy.expose

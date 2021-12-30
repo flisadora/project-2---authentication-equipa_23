@@ -37,34 +37,34 @@ function startDiffieHellman() {
 }
 
 function challenge($dbpass) {
-     while ($dbpass){
-        // POST request
-        $key = 'challenge idk'
-        $reqObj = array("key"=>$key);
-        $reqJSON = json_encode($reqObj);
-        echo $reqJSON;
-        
-        // GET request
-        $respJSON = file_get_contents("php://input");
-        $resp = json_decode($respJSON);
-        $respObj = $resp->response;
-        #do things with uap response of challenge and check if its equal to a part of $dbpass
-        if (false)
-            return false;
-     }
-     return true;
+    // while ($dbpass){
+    // POST request
+    $key = 'challenge idk'
+    $reqObj = array("key"=>$key);
+    $reqJSON = json_encode($reqObj);
+    echo $reqJSON;
+    
+    // GET request
+    $respJSON = file_get_contents("php://input");
+    $resp = json_decode($respJSON);
+    $respObj = $resp->response;
+    #do things with uap response of challenge and check if its equal to a part of $dbpass
+    if (false)
+        return false;
+    }
+    return true;
 }
 
-function login($conn) {
+function login() {
     $res = array();
     
     // not successfull connection
-    if(!successfullConn($conn)) {
-        // {loggedin: false; erro: ...}
-        $res["loggedin"] = false;
-        $res["error"] = $conn;
-        return json_encode($res);
-    }
+    // if(!successfullConn($conn)) {
+    //     // {loggedin: false; erro: ...}
+    //     $res["loggedin"] = false;
+    //     $res["error"] = $conn;
+    //     return json_encode($res);
+    // }
     // successfull connection
     startDiffieHellman();
     // get login information
@@ -86,9 +86,9 @@ function login($conn) {
     }
     
     // GET request
-    $respJSON = file_get_contents("php://input");
-    $resp = json_decode($respJSON);
-    $email = $resp->email;
+    // $respJSON = file_get_contents("php://input");
+    // $resp = json_decode($respJSON);
+    // $email = $resp->email;
 
 
     if(empty($pass)) {
@@ -138,9 +138,9 @@ function login($conn) {
 // connect to UAP
 
 // connect to DB
-$conn = connectDB();
+// $conn = connectDB();
 
-echo login($conn);
+echo login();
 
-mysqli_close($conn);
+// mysqli_close($conn);
 ?>
