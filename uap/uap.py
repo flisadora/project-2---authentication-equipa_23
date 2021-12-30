@@ -2,6 +2,7 @@ import cherrypy
 from cherrypy.lib import auth_digest
 import json
 import requests
+#import requests_async as requests
 from random import randint
 from jinja2 import Environment, FileSystemLoader
 env = Environment(loader=FileSystemLoader('templates'))
@@ -72,18 +73,23 @@ class UAP(object):
         req_json = {'diffieHellman' : public_key}
         print(req_json)
 
-        post_request = requests.post(url = 'http://localhost:8080/server/login.php', data = req_json)
+        post_request = asyncio.post(url = 'http://localhost:8080/server/login.php', data = req_json)
         #json1 = post_request
         #print(post_request.url)
-        print(post_request.text)
+        print(post_request)
 
         # GET request
         get_request = requests.get('http://localhost:8080/server/login.php')
         print("GET", get_request)
-        # resp_json = get_request.json()['form']
+        print(get_request.text)
+        #avg = get_request.json
+
+        resp_json = json.loads(get_request)
+        resp_json = resp_json['form']
+        print(resp_json)
 
         # uap private key
-        #private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
+        private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
         return req_json
 
     @cherrypy.expose
