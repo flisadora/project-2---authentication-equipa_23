@@ -48,9 +48,9 @@ class UAP(object):
         #diffie
         asyncio.run(startDiffieHellman())
         #hello
-        # self.hello(email)
+        asyncio.run(challenge(email, password))
         # #challenge
-        # self.challenge(password)
+        # asyncio.run(challenge(password))
         
         
 
@@ -59,37 +59,39 @@ class UAP(object):
         return tmpl.render()
 
     
-
-
-    @cherrypy.expose
-    def hello(self, email):
-        hellomsg = json.dumps({"email": email})
-
-        post = requests.post('http://localhost:8080/server/login.php', data = hellomsg)
-        print("POST", post)
-
-        return hellomsg
     
-    @cherrypy.expose
-    def challenge(self, password):
-        c = 0
-        password=''
-        while c<len(password):
-            get = requests.get('http://localhost:8080/server/login.php')
-            get_json = get.json()
 
-            # {'key': … } 
-            key = get_json['key']
-            # do challenge with key
-            # TODO
-            chall_resp = key
-            chall_resp_msg = json.dumps({"response": chall_resp})
+async def challenge(email, password):
+    c = 0
 
-            post = requests.post('http://localhost:8080/server/login.php', data = chall_resp_msg)
-            
-            # c = len(password) / len(chall ??)
-            c+=1      #temporary
-        return 'Authentication Done'
+    hellomsg = {"email": email}
+
+    async with aiohttp.ClientSession() as session:
+
+        async with session.post('http://localhost:8080/server/login.php', json=hellomsg) as resp:
+            post_response = await resp.text()
+            print(post_response)
+
+    challenge = json.loads(post_response)
+    print("Challenge", challenge)
+    
+
+    # while True:
+    #     get = requests.get('http://localhost:8080/server/login.php')
+    #     get_json = get.json()
+
+    #     # {'key': … } 
+    #     key = get_json['key']
+    #     # do challenge with key
+    #     # TODO
+    #     chall_resp = key
+    #     chall_resp_msg = json.dumps({"response": chall_resp})
+
+    #     post = requests.post('http://localhost:8080/server/login.php', data = chall_resp_msg)
+        
+    #     # c = len(password) / len(chall ??)
+    #     c+=1      #temporary
+    return 'Authentication Done'
 
 
 async def startDiffieHellman():
@@ -111,25 +113,14 @@ async def startDiffieHellman():
     async with aiohttp.ClientSession() as session:
 
         async with session.post('http://localhost:8080/server/login.php', json=req_json) as resp:
-        #post_request = await requests.post(url = 'http://localhost:8080/server/login.php', data = req_json)
-            post_request = await resp.text()
-            print(post_request)
-    #json1 = post_request
-    #print(post_request.url)
-    #print(post_request)
+            post_response = await resp.text()
+            print(post_response)
 
-    # GET request
-    # get_request = requests.get('http://localhost:8080/server/login.php')
-    # print("GET", get_request)
-    # print(get_request.text)
-    # #avg = get_request.json
-
-    # resp_json = json.loads(get_request)
-    # resp_json = resp_json['form']
-    # print(resp_json)
+    resp_json = json.loads(post_response)
 
     # uap private key
-    # private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
+    private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
+    print(private_key)
     return req_json
         
 # TODO: ask password
