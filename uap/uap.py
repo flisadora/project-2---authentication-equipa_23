@@ -2,6 +2,8 @@ import cherrypy
 from cherrypy.lib import auth_digest
 import json
 import requests
+import asyncio
+import aiohttp
 #import requests_async as requests
 from random import randint
 from jinja2 import Environment, FileSystemLoader
@@ -44,7 +46,7 @@ class UAP(object):
         #ciclo com mensagens
         
         #diffie
-        self.startDiffieHellman()
+        asyncio.run(startDiffieHellman())
         #hello
         # self.hello(email)
         # #challenge
@@ -56,41 +58,8 @@ class UAP(object):
         tmpl = env.get_template('authentication.html')
         return tmpl.render()
 
-    @cherrypy.expose
-    def startDiffieHellman(self):
-        # prime number
-        P = 23
-        # base
-        G = 5
-        
-        temp_private_key = randint(2, P)
-        print(temp_private_key)
+    
 
-        # shared key by UAP and app server
-        public_key =  int(pow(G,temp_private_key, P))
-
-        # POST request
-        req_json = {'diffieHellman' : public_key}
-        print(req_json)
-
-        post_request = asyncio.post(url = 'http://localhost:8080/server/login.php', data = req_json)
-        #json1 = post_request
-        #print(post_request.url)
-        print(post_request)
-
-        # GET request
-        get_request = requests.get('http://localhost:8080/server/login.php')
-        print("GET", get_request)
-        print(get_request.text)
-        #avg = get_request.json
-
-        resp_json = json.loads(get_request)
-        resp_json = resp_json['form']
-        print(resp_json)
-
-        # uap private key
-        private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
-        return req_json
 
     @cherrypy.expose
     def hello(self, email):
@@ -123,7 +92,45 @@ class UAP(object):
         return 'Authentication Done'
 
 
+async def startDiffieHellman():
+    # prime number
+    P = 23
+    # base
+    G = 5
+    
+    temp_private_key = randint(2, P)
+    print(temp_private_key)
 
+    # shared key by UAP and app server
+    public_key =  int(pow(G,temp_private_key, P))
+
+    # POST request
+    req_json = {'diffieHellman' : public_key}
+    print(req_json)
+
+    async with aiohttp.ClientSession() as session:
+
+        async with session.post('http://localhost:8080/server/login.php', json=req_json) as resp:
+        #post_request = await requests.post(url = 'http://localhost:8080/server/login.php', data = req_json)
+            post_request = await resp.text()
+            print(post_request)
+    #json1 = post_request
+    #print(post_request.url)
+    #print(post_request)
+
+    # GET request
+    # get_request = requests.get('http://localhost:8080/server/login.php')
+    # print("GET", get_request)
+    # print(get_request.text)
+    # #avg = get_request.json
+
+    # resp_json = json.loads(get_request)
+    # resp_json = resp_json['form']
+    # print(resp_json)
+
+    # uap private key
+    # private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
+    return req_json
         
 # TODO: ask password
 # TODO: encrypt data with password and salt
