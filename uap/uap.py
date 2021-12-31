@@ -1,160 +1,155 @@
 import cherrypy
+from cherrypy.lib import auth_digest
 import json
+import requests
+import asyncio
+import aiohttp
+#import requests_async as requests
+from random import randint
+from jinja2 import Environment, FileSystemLoader
+env = Environment(loader=FileSystemLoader('templates'))
+
+
+USERS = {'jon': 'secret'}
 
 class UAP(object):
     @cherrypy.expose
     def index(self):
+        with open("passwords.json", "r") as f:
+            passwords = json.load(f)
+        
+        tmpl = env.get_template('index.html')
+        return tmpl.render(passwords=passwords)
+
+    @cherrypy.expose
+    def new_login(self):
+        tmpl = env.get_template('new_login.html')
+        return tmpl.render(title="New Login")
+
+    @cherrypy.expose
+    @cherrypy.tools.allow(methods=('POST'))
+    def add_login(self, inputDns=None, inputEmail1=None, inputUsername=None, inputPassword=None):
         f = open('passwords.json')
-        passwords = json.load(f)
-        r = """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <!-- Required meta tags -->
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        d = json.load(f)
+        f.close()
+        login = {"dns": inputDns, "username": inputUsername, "email": inputEmail1, "password": inputPassword}
+        d.append(login)
+        #d = json.dumps(d)
+        with open('passwords.json', 'w') as f:
+            json.dump(d, f)
+            # f.write(d)
+        raise cherrypy.HTTPRedirect("/")
 
-            <!-- Bootstrap CSS -->
-            <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    @cherrypy.expose
+    @cherrypy.tools.allow(methods=('POST'))
+    def submit_credentials(self, dns, username, email, password):
+        #ciclo com mensagens
+        
+        #diffie
+        asyncio.run(startDiffieHellman())
+        #hello
+        asyncio.run(challenge(email, password))
+        # #challenge
+        # asyncio.run(challenge(password))
+        
+        
 
-            <title>This is the title of the webpage!</title>
-        </head>
-        <body>
+        #send response to challege
+        tmpl = env.get_template('authentication.html')
+        return tmpl.render()
 
-            <div class="container mt-3">
-                <p>This is an example paragraph. Anything in the <strong>body</strong> tag will appear on the page, just like this <strong>p</strong> tag and its contents.</p>
+    
+    
 
-                <div class="row">
-                    <div class="col-4">
-                        <div class="list-group" id="list-tab" role="tablist">
-        """
-        c = ""
-        for i, credentials in enumerate(passwords):
-            if i == 0:
-                r += """
-                                <a class="list-group-item list-group-item-action active" id="list-""" + str(i) + """-list" data-toggle="list" href="#list-""" + str(i) + """"" role="tab" aria-controls="home">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        """ + credentials["dns"] + """
-                                    </div>
-                                    <small>""" + credentials["username"] + """</small>
-                                </a>
-                """
-                c += """
-                            <div class="tab-pane fade show active" id="list-""" + str(i) + """"" role="tabpanel" aria-labelledby="list-""" + str(i) + """"-list>
-                                <div class="list-group mb-3">
-                                    <div class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <small>Name</small>
-                                        </div>
-                                        """ + credentials["dns"] + """
-                                    </div>
-                                    <div class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <small>Username</small>
-                                        </div>
-                                        """ + credentials["username"] + """
-                                    </div>
-                                    <div class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <small>Email</small>
-                                        </div>
-                                        """ + credentials["email"] + """
-                                    </div>
-                                    <div class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <small>Password</small>
-                                        </div>
-                                        <input type="password" class="form-control" id="exampleInputPassword1" value=\"""" + credentials["password"] + """" readonly>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-primary">Login</button>
-                            </div>
+async def challenge(email, password):
 
-                """
-            else:
-                r += """
-                                <a class="list-group-item list-group-item-action" id="list-""" + str(i) + """-list" data-toggle="list" href="#list-""" + str(i) + """"" role="tab" aria-controls="home">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        """ + credentials["dns"] + """
-                                    </div>
-                                    <small>""" + credentials["username"] + """</small>
-                                </a>
-                """
-                c += """
-                            <div class="tab-pane fade show" id="list-""" + str(i) + """"" role="tabpanel" aria-labelledby="list-""" + str(i) + """"-list>
-                                <div class="list-group mb-3">
-                                    <div class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <small>Name</small>
-                                        </div>
-                                        """ + credentials["dns"] + """
-                                    </div>
-                                    <div class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <small>Username</small>
-                                        </div>
-                                        """ + credentials["username"] + """
-                                    </div>
-                                    <div class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <small>Email</small>
-                                        </div>
-                                        """ + credentials["email"] + """
-                                    </div>
-                                    <div class="list-group-item">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <small>Password</small>
-                                        </div>
-                                        <input type="password" class="form-control" id="exampleInputPassword1" value=\"""" + credentials["password"] + """" readonly>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-primary">Login</button>
-                            </div>
+    hellomsg = {"email": email}
 
-                """
-            
-            #                 <a class="list-group-item list-group-item-action" id="list-profile-list" data-toggle="list" href="#list-profile" role="tab" aria-controls="profile">Profile</a>
-            #                 <a class="list-group-item list-group-item-action" id="list-messages-list" data-toggle="list" href="#list-messages" role="tab" aria-controls="messages">Messages</a>
-            #                 <a class="list-group-item list-group-item-action" id="list-settings-list" data-toggle="list" href="#list-settings" role="tab" aria-controls="settings">Settings</a>
-        r += """
-                        </div>
-                 </div>
-                 <div class="col-8">
-                        <div class="tab-content" id="nav-tabContent">
-        """
+    async with aiohttp.ClientSession() as session:
 
-        r += c
-            #             </div>
-            #         </div>
-            #         <div class="col-8">
-            #             <div class="tab-content" id="nav-tabContent">
-            #                 <div class="tab-pane fade show active" id="list-home" role="tabpanel" aria-labelledby="list-home-list">Email: isabella@hotmail.com</div>
-            #                 <div class="tab-pane fade" id="list-profile" role="tabpanel" aria-labelledby="list-profile-list">Email: isabel@hotmail.com</div>
-            #                 <div class="tab-pane fade" id="list-messages" role="tabpanel" aria-labelledby="list-messages-list">Email: isab@hotmail.com</div>
-            #                 <div class="tab-pane fade" id="list-settings" role="tabpanel" aria-labelledby="list-settings-list">Email: is@hotmail.com</div>
-            #             </div>
-            #         </div>
-            # """
-        r += """
-                        </div>
-                    </div>
-                </div>
-            </div>
+        async with session.post('http://localhost:8080/server/login.php', json=hellomsg) as resp:
+            post_response = await resp.text()
+            print(post_response)
 
-            <!-- Optional JavaScript -->
-            <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-            <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-            <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
-        </body>
-        </html>
-        """
+    challenge = json.loads(post_response)
+    print("Challenge", challenge)
+    
 
+    # while True:
+    #     get = requests.get('http://localhost:8080/server/login.php')
+    #     get_json = get.json()
+
+    #     # {'key': … } 
+    #     key = get_json['key']
+    #     # do challenge with key
+    #     # TODO
+    #     chall_resp = key
+    #     chall_resp_msg = json.dumps({"response": chall_resp})
+
+    #     post = requests.post('http://localhost:8080/server/login.php', data = chall_resp_msg)
+        
+    #     # c = len(password) / len(chall ??)
+    #     c+=1      #temporary
+    return 'Authentication Done'
+
+
+async def startDiffieHellman():
+    # prime number
+    P = 23
+    # base
+    G = 5
+    
+    temp_private_key = randint(2, P)
+    print(temp_private_key)
+
+    # shared key by UAP and app server
+    public_key =  int(pow(G,temp_private_key, P))
+
+    # POST request
+    req_json = {'diffieHellman' : public_key}
+    print(req_json)
+
+    async with aiohttp.ClientSession() as session:
+
+        async with session.post('http://localhost:8080/server/login.php', json=req_json) as resp:
+            post_response = await resp.text()
+            print(post_response)
+
+    resp_json = json.loads(post_response)
+
+    # uap private key
+    private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
+    print(private_key)
+    return req_json
+        
 # TODO: ask password
 # TODO: encrypt data with password and salt
-# TODO: button to add login (como se fossemos fazer login no site original)
 
-        return r
+def secureheaders():
+    headers = cherrypy.response.headers
+    headers['X-Frame-Options'] = 'DENY'
+    headers['X-XSS-Protection'] = '1; mode=block'
+    headers['Content-Security-Policy'] = "default-src='self'"
+
+
 if __name__ == '__main__':
-    cherrypy.config.update({'server.socket_port': 8443})
-    cherrypy.quickstart(UAP())
+    cherrypy.config.update(
+        {'server.socket_port': 8443,
+        'server.ssl_module': 'builtin',
+        'server.ssl_certificate': "cert.pem",
+        'server.ssl_private_key': "privkey.pem",}
+    )
+    cherrypy.tools.secureheaders = cherrypy.Tool('before_finalize', secureheaders, priority=60)
+    
+    conf = {
+    '/': {
+        'tools.auth_digest.on': True,
+        'tools.auth_digest.realm': 'localhost',
+        'tools.auth_digest.get_ha1': auth_digest.get_ha1_dict_plain(USERS),
+        'tools.auth_digest.key': 'a565c27146791cfb',
+        'tools.auth_basic.accept_charset': 'UTF-8',
+        'tools.secureheaders.on': True,
+        }
+    }
+
+    cherrypy.quickstart(UAP(), "/", conf)
