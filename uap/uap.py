@@ -9,7 +9,10 @@ from random import randint
 from jinja2 import Environment, FileSystemLoader
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.backends import default_backend
 import hashlib
+import base64
+import os
 from Crypto.Cipher import AES
 env = Environment(loader=FileSystemLoader('templates'))
 
@@ -79,37 +82,40 @@ async def challenge(email, password):
     print("Challenge", challenge_json)
 
     challenge = challenge_json['key']
+    password = "iLoveDobby_3"
 
-    hashed_password = hashlib.md5(password)
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),length=32, salt=challenge.encode('utf-8'), iterations=500000,)
-    response = kdf.derive(hashed_password.encode('utf-8'))
+    while True:
+        response = calc_response(challenge, password)
+        new_challenge = os.urandom(16)
+        chall_resp_msg = {'key': response, 'challenge': new_challenge}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post('http://localhost:8080/server/login.php', data = chall_resp_msg) as resp:
+                post_response = await resp.text()
+        
+        if not post_response: break
+
+        
+    return 'Authentication Done'
+
+def calc_response(challenge, password):
+    hashed_password = hashlib.md5(password.encode())
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),length=32, salt=challenge.encode('utf-8'), iterations=500000, backend=default_backend())
+    response = kdf.derive(hashed_password.hexdigest().encode('utf-8'))
+    print(base64.b64encode(response))
     print("HASHED PASS")
     print(hashed_password)
-    #response = AES.new(key, AES.MODE_OFB)
 
-
-    # while True:
-    #     get = requests.get('http://localhost:8080/server/login.php')
-    #     get_json = get.json()
-
-    xor_result = response[0] & 1
-    # the chosen bit is a xor of all the response bits
+    xor_result = base64.b64encode(response)[0] & 1
+    #the chosen bit is a xor of all the response bits
     for i in range(1, len(response)):
-        xor_result ^= (response[i] & 1)
+        xor_result ^= (base64.b64encode(response)[i] & 1)
+    print(base64.b64encode(response)[0])
+    bit_challenge = xor_result
+    print("bit challenge")
+    print(bit_challenge)
 
-    chall_resp_msg = {'key':  xor_result} 
-
-    #     key = get_json['key']
-    #     # do challenge with key
-    #     # TODO
-    #     chall_resp = key
-    #     chall_resp_msg = json.dumps({"response": chall_resp})
-
-    post = requests.post('http://localhost:8080/server/login.php', data = chall_resp_msg)
-        
-    #     # c = len(password) / len(chall ??)
-    #     c+=1      #temporary
-    return 'Authentication Done'
+    return bit_challenge
 
 
 async def startDiffieHellman():
