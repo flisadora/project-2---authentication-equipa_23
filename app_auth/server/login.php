@@ -54,39 +54,36 @@ function hello($email, $conn) {
 function challenge($dbpass) {
     // while ($dbpass){
     // POST request
-    echo "HI PATRICIA";
-    echo $dbpass;
-    $key = openssl_random_pseudo_bytes(16);
-    echo "========";
-    echo $key;
-    $reqObj = array("key"=>$key);
-    print_r($reqObj);
-    echo "IM NOT FINE";
-    $reqJSON = json_encode($reqObj);
-    echo $reqJSON;
+    $key = utf8_encode(base64_encode(openssl_random_pseudo_bytes(16)));   
+    // $reqObj = array("key"=>$key, "generated_key"=>base64_encode($generated_key), "xor"=>$xor_result);
+    // $reqJSON = json_encode($reqObj);
+    // echo $reqJSON;
 
     //$hashed_pass = md5(utf8_encode($dbpass));
-    // $hashed_pass = md5(utf8_encode("iLoveDobby_3"));
-    // $algo = "sha256";
-    // $salt = utf8_encode($key);
-    // $iterations = 500000;
-    // $len = 32;
-    // $binary = True;
+    $hashed_pass = md5(utf8_encode("iLoveDobby_3"));
+    $algo = "sha256";
+    $salt = utf8_encode($key);
+    $iterations = 500000;
+    $len = 32;
+    $binary = True;
 
     // // $binarydata = "\x02\xae\x0b\xdf\xe8\x84_\x85";
     // // $array = unpack("cchars/nint", $binarydata);
     // // print_r($array);
     // // echo "<br>";
 
-    // $generated_key = hash_pbkdf2($algo, $hashed_pass, $salt, $iterations, $len, $binary);
-   
-    // $one = 1;
-    // $xor_result = intval($generated_key[0]) & $one;
-    // for ($i = 1; $i < strlen($generated_key) ; $i++) {
-    //     $xor_result = (intval($generated_key[$i]) & $one) ^ $xor_result;
-    // }
-
-    // return $xor_result;
+    $generated_key = hash_pbkdf2($algo, $hashed_pass, $salt, $iterations, $len, $binary);
+    
+    $xor_result = ord(base64_encode($generated_key)[0]) & 1;
+    
+    for ($i = 1; $i < strlen($generated_key) ; $i++) {
+        $xor_result = (ord(base64_encode($generated_key)[$i]) & 1) ^ ($xor_result);
+    }
+    
+    $reqObj = array("key"=>$key, "generated_key"=>base64_encode($generated_key), "xor"=>$xor_result, "response0"=> ord(base64_encode($generated_key)[0]));
+    $reqJSON = json_encode($reqObj);
+    echo $reqJSON;
+    return $xor_result;
     
     // GET request
     // $respJSON = file_get_contents("php://input");
@@ -114,7 +111,7 @@ function login($conn) {
     // get login information
     $JSONData = file_get_contents("php://input");
     $dataObject = json_decode($JSONData);
-    echo $JSONData;
+
     $email = "";
     $pass = "";
     //$result_challenge = "";
@@ -124,12 +121,12 @@ function login($conn) {
         startDiffieHellman();	// verificação do email é feita no react
         
     }
-    echo "DEPOSI DIFFIE HELL";
+
     if(isset($dataObject->email))
     {
-        echo "ANTES DO EMAIL";
+
     	$email = $dataObject->email;
-    	echo "DEPOOIS DO EMAIL";
+
     	// get data from database
         $sql = "SELECT * FROM users WHERE email=?";
         $stmt = mysqli_prepare($conn, $sql);
@@ -140,18 +137,17 @@ function login($conn) {
 
         $result = mysqli_stmt_get_result($stmt);
         $result = mysqli_fetch_assoc($result);
-        echo "ANTES DO IF";
+
         // user exists
         if(isset($result["nickname"])) {
             // check if password is correct
             $pass = $result["password"];
             // $result_challenge = challenge($pass);
-            echo "ANTES DO CHALLENGE";
+
             challenge($pass);
-            echo "DEPOIS DO CHALLENGE";
+
         }else {
             // user doesn't exist
-            echo "NO ELSE";
             echo json_encode(array("resp"=>'Wrong email.'));
         }
 
