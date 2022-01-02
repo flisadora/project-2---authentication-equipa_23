@@ -71,51 +71,77 @@ class UAP(object):
 async def challenge(email, password):
 
     hellomsg = {"email": email}
+    valid_user_auth = 1
+    SESSION_ID = ""
 
     async with aiohttp.ClientSession() as session:
 
-        async with session.post('http://localhost:8080/server/login.php', json=hellomsg) as resp:
+        async with session.post('http://localhost:8080/server/login.php?PHPSESSID='+ SESSION_ID, json=hellomsg) as resp:
             post_response = await resp.text()
             print(post_response)
+            await session.close()
 
     challenge_json = json.loads(post_response)
     print("Challenge", challenge_json)
-
+    SESSION_ID = challenge_json['session_id']
     challenge = challenge_json['key']
-    password = "iLoveDobby_3"
+    #password = "iLoveDobby_3"
 
-    while True:
-        response = calc_response(challenge, password)
-        new_challenge = os.urandom(16)
-        chall_resp_msg = {'key': response, 'challenge': new_challenge}
+    async with aiohttp.ClientSession() as session:
+        while True:
+            if valid_user_auth == 1:
+                response = calc_response(challenge, password)
+            else:
+                response = base64.b64encode(challenge.encode('utf-8'))[0] & 1
+            uap_challenge = base64.b64encode(os.urandom(16))
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post('http://localhost:8080/server/login.php', data = chall_resp_msg) as resp:
+            uap_response = calc_response(uap_challenge.decode(), password)
+            chall_resp_msg = {'key': uap_challenge.decode(), 'response': response}
+
+            async with session.post('http://localhost:8080/server/login.php?PHPSESSID='+ SESSION_ID, json=chall_resp_msg) as resp:
                 post_response = await resp.text()
-        
-        if not post_response: break
+            
+            challenge_json = json.loads(post_response)
+            challenge = challenge_json['key']
+            response_from_server = challenge_json['response']
+            print("JSON FROM PHP: ", challenge_json)
+            if challenge=="end of auth":
+                valid_user_auth = verify_response(uap_response, response_from_server, valid_user_auth)
+                print("end of verification<<<<<<<<<<<")
+                break
+            
+            # if responses dont match random responses will be sent in stead
+            valid_user_auth = verify_response(uap_response, response_from_server, valid_user_auth)
 
-        
-    return 'Authentication Done'
+            print("------------------------------------------------")
+    await session.close()
+
+    return valid_user_auth
+
+def verify_response(uap_response, response_from_server, valid_user_auth):
+    if (uap_response != response_from_server) and (valid_user_auth == 1):
+        print("invalid user<<<<<<<<<<<<<<<<<<<")
+        return 0
+    return 1
 
 def calc_response(challenge, password):
+    if isinstance(challenge, str):
+        challenge = challenge.encode('utf-8')
     hashed_password = hashlib.md5(password.encode())
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),length=32, salt=challenge.encode('utf-8'), iterations=500000, backend=default_backend())
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),length=32, salt=challenge, iterations=500000, backend=default_backend())
     response = kdf.derive(hashed_password.hexdigest().encode('utf-8'))
-    print(base64.b64encode(response))
-    print("HASHED PASS")
-    print(hashed_password)
+    #print(base64.b64encode(response))
 
     xor_result = base64.b64encode(response)[0] & 1
     #the chosen bit is a xor of all the response bits
     for i in range(1, len(response)):
         xor_result ^= (base64.b64encode(response)[i] & 1)
+    
     print(base64.b64encode(response)[0])
-    bit_challenge = xor_result
     print("bit challenge")
-    print(bit_challenge)
+    print(xor_result)
 
-    return bit_challenge
+    return xor_result
 
 
 async def startDiffieHellman():
@@ -136,7 +162,7 @@ async def startDiffieHellman():
 
     async with aiohttp.ClientSession() as session:
 
-        async with session.post('http://localhost:8080/server/login.php', json=req_json) as resp:
+        async with session.post('http://localhost:8080/server/login.php?PHPSESSID='+ SESSION_ID, json=req_json) as resp:
             post_response = await resp.text()
             print(post_response)
 
@@ -176,5 +202,5 @@ if __name__ == '__main__':
         'tools.secureheaders.on': True,
         }
     }
-
+    
     cherrypy.quickstart(UAP(), "/", conf)

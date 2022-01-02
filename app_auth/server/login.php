@@ -1,10 +1,10 @@
 
 <?php
+//session_start();
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 include('connect.php');
-session_start();
 header('Access-Control-Allow-Origin: *');
 header("Access-Control-Allow-Methods: *");
 header("Access-Control-Allow-Headers: X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method");
@@ -13,8 +13,6 @@ header("Content-Type: text/html; charset=utf-8");
     // bella.4: iLoveDobby_3
     // johny_03: AvadaKedravaBellatrix
     // lilimarta74: AvadaKedravaBellatrix88
-    
-   
 
 function startDiffieHellman() {
     // prime number
@@ -44,33 +42,21 @@ function startDiffieHellman() {
     
 }
 
+function challenge($dbpass) {
+    $key = utf8_encode(base64_encode(openssl_random_pseudo_bytes(16)));   
+   
+    $xor_result = calc_response($key, $dbpass);
 
-function hello($email, $conn) {
-    
-
-    
+    return array($xor_result[0], $key, $xor_result[1]);
 }
 
-function challenge($dbpass) {
-    // while ($dbpass){
-    // POST request
-    $key = utf8_encode(base64_encode(openssl_random_pseudo_bytes(16)));   
-    // $reqObj = array("key"=>$key, "generated_key"=>base64_encode($generated_key), "xor"=>$xor_result);
-    // $reqJSON = json_encode($reqObj);
-    // echo $reqJSON;
-
-    //$hashed_pass = md5(utf8_encode($dbpass));
-    $hashed_pass = md5(utf8_encode("iLoveDobby_3"));
+function calc_response($key, $password) {
+    $hashed_pass = $password;
     $algo = "sha256";
     $salt = utf8_encode($key);
     $iterations = 500000;
     $len = 32;
     $binary = True;
-
-    // // $binarydata = "\x02\xae\x0b\xdf\xe8\x84_\x85";
-    // // $array = unpack("cchars/nint", $binarydata);
-    // // print_r($array);
-    // // echo "<br>";
 
     $generated_key = hash_pbkdf2($algo, $hashed_pass, $salt, $iterations, $len, $binary);
     
@@ -79,22 +65,8 @@ function challenge($dbpass) {
     for ($i = 1; $i < strlen($generated_key) ; $i++) {
         $xor_result = (ord(base64_encode($generated_key)[$i]) & 1) ^ ($xor_result);
     }
-    
-    $reqObj = array("key"=>$key, "generated_key"=>base64_encode($generated_key), "xor"=>$xor_result, "response0"=> ord(base64_encode($generated_key)[0]));
-    $reqJSON = json_encode($reqObj);
-    echo $reqJSON;
-    return $xor_result;
-    
-    // GET request
-    // $respJSON = file_get_contents("php://input");
-    // $resp = json_decode($respJSON);
-    // $respObj = $resp->response;
-    
-    // #do things with uap response of challenge and check if its equal to a part of $dbpass
-    // if (false){
-    //     return false;
-    // }
-    // return true;
+
+    return array($xor_result, ord(base64_encode($generated_key)[0]));
 }
 
 function login($conn) {
@@ -113,8 +85,7 @@ function login($conn) {
     $dataObject = json_decode($JSONData);
 
     $email = "";
-    $pass = "";
-    //$result_challenge = "";
+    $n = 10;
 
     if(isset($dataObject->diffieHellman))
     {
@@ -141,32 +112,72 @@ function login($conn) {
         // user exists
         if(isset($result["nickname"])) {
             // check if password is correct
-            $pass = $result["password"];
-            // $result_challenge = challenge($pass);
-
-            challenge($pass);
-
+            session_start();
+            $_SESSION['pass'] = $result["password"];
+            $_SESSION['n'] = 0;
+            $_SESSION['valid_user_auth'] = True;
+            $array = challenge($_SESSION['pass']);
+            $_SESSION['result_challenge'] = $array[0];
+            $key = $array[1];
+            
+            $reqObj = array("key"=>$key, "session_id"=>session_id(), "inteiro"=>$array[2]);
+            $reqJSON = json_encode($reqObj);
+            echo $reqJSON;
         }else {
             // user doesn't exist
             echo json_encode(array("resp"=>'Wrong email.'));
         }
 
     }
+
+    if(isset($dataObject->key ) && isset($dataObject->response))
+    {
+        $key = $dataObject->key;
+        $response = $dataObject->response;
+        $_SERVER["REQUEST_URI"];
+        $url_components = parse_url($_SERVER["REQUEST_URI"]);
+        parse_str($url_components['query'], $params);
+        session_id($params['PHPSESSID']);
+        session_start();
+
+        if($_SESSION['n'] < $n){
+            $_SESSION['n']+=1;
+            $reqObj = "";
+            if(($_SESSION['result_challenge'] == $response) && $_SESSION['valid_user_auth']) {
+                if($_SESSION['n'] == ($n-1)){
+
+                    $array_calcresponse = calc_response($key, $_SESSION['pass']);
+
+
+                    $reqObj = array("key"=>"end of auth","response"=>$array_calcresponse[0], "inteiro"=>$array_calcresponse[1], "session"=> $_SESSION['n']);
+                }
+                else {
+                    $array = challenge($_SESSION['pass']);
+                    $_SESSION['result_challenge'] = $array[0];
+                    $challenge = $array[1];
+
+                    $array_calcresponse = calc_response($key, $_SESSION['pass']);
+
+                    $reqObj = array("key"=>$challenge, "response"=>$array_calcresponse[0], "inteiro"=>$array_calcresponse[1], "session"=> $_SESSION['n']);
+                }   
+            }
+            else {
+                $_SESSION['valid_user_auth'] = FALSE;
+                $rand_num = utf8_encode(base64_encode(openssl_random_pseudo_bytes(32)));
+                $_SESSION['result_challenge'] = ord(base64_encode($rand_num)[0]) & 1;
+                $reqObj = array("key"=>$rand_num, "response"=>calc_response($key, $_SESSION['pass'])[0], "session"=> $_SESSION['n']);
+            }
+            $reqJSON = json_encode($reqObj);
+            echo $reqJSON;
+        }
+
+    }
+
     
     // GET request
     // $respJSON = file_get_contents("php://input");
     // $resp = json_decode($respJSON);
     // $email = $resp->email;
-
-
-    if(empty($pass)) {
-        // {loggedin: false; erro: ...}
-        $res["loggedin"] = false;
-        $res["error"] = "You must enter a password.";
-        return json_encode($res);
-    }
-    
-
     
     return json_encode($res);
 }
@@ -180,4 +191,5 @@ login($conn);
 //echo login($conn);
 
 mysqli_close($conn);
+exit();
 ?>
