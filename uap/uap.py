@@ -16,15 +16,29 @@ import os
 from Crypto.Cipher import AES
 env = Environment(loader=FileSystemLoader('templates'))
 
+'''
+    post message types:
+    1. hello
+    2. challenge
+    3. challenge + response
+    4. end of auth
+    5. msg error
+    6. username + role
+    7. response username + role
+'''
 
 USERS = {'jon': 'secret'}
 
 class UAP(object):
     @cherrypy.expose
-    def index(self):
+    def index(self, auth_msg=None):
         with open("passwords.json", "r") as f:
             passwords = json.load(f)
         
+        if auth_msg!=None:
+            tmpl = env.get_template('auth_error.html')
+            return tmpl.render(passwords=passwords, auth_msg=auth_msg)
+
         tmpl = env.get_template('index.html')
         return tmpl.render(passwords=passwords)
 
@@ -49,43 +63,66 @@ class UAP(object):
 
     @cherrypy.expose
     @cherrypy.tools.allow(methods=('POST'))
-    def submit_credentials(self, dns, username, email, password):
+    def submit_credentials(self, dns, email, password):
         #ciclo com mensagens
         
         #diffie
         #asyncio.run(startDiffieHellman())
         #hello
-        asyncio.run(challenge(email, password))
-        # #challenge
-        # asyncio.run(challenge(password))
-        
-        
+        valid_user_auth, SESSION_ID = asyncio.run(challenge(email, password))      
+        print("AUTH: " + str(valid_user_auth))
+
+        # if user is valid make another request to server 'username' and 'role'
+        # if user is not valid redirect to login with message of authentication failure
+        if not valid_user_auth:
+            raise cherrypy.HTTPRedirect("/?auth_msg=Invalid+user")
+
+        username, role = asyncio.run(auth_final_msg(SESSION_ID, email))
+        print(username, role)
 
         #send response to challege
-        tmpl = env.get_template('authentication.html')
-        return tmpl.render()
+        raise cherrypy.HTTPRedirect("http://localhost:3000?username="+ username + "&role=" + str(role))
 
     
-    
+async def auth_final_msg(session_id, email):
+
+    msg = {"type": 6, "email": email}
+
+    async with aiohttp.ClientSession() as session:
+
+        async with session.get('http://localhost:8080/server/login.php?PHPSESSID='+ session_id, json=msg) as resp:
+            post_response = await resp.text()
+            await session.close()
+    response = json.loads(post_response)
+
+    if response['type'] == 5:
+        return None, None
+        
+    return response['username'], response['role']
+
 
 async def challenge(email, password):
 
-    hellomsg = {"email": email}
+    hellomsg = {"type":1, "email": email}
     valid_user_auth = 1
+    url = 'http://localhost:8080/server/login.php?PHPSESSID='
     SESSION_ID = ""
 
     async with aiohttp.ClientSession() as session:
 
-        async with session.post('http://localhost:8080/server/login.php?PHPSESSID='+ SESSION_ID, json=hellomsg) as resp:
+        async with session.post(url+ SESSION_ID, json=hellomsg) as resp:
             post_response = await resp.text()
             print(post_response)
             await session.close()
-
+    
     challenge_json = json.loads(post_response)
     print("Challenge", challenge_json)
-    SESSION_ID = challenge_json['session_id']
     challenge = challenge_json['key']
-    #password = "iLoveDobby_3"
+
+    if challenge_json['type']==5:
+        return 0
+
+    SESSION_ID = challenge_json['session_id']
 
     async with aiohttp.ClientSession() as session:
         while True:
@@ -96,19 +133,20 @@ async def challenge(email, password):
             uap_challenge = base64.b64encode(os.urandom(16))
 
             uap_response = calc_response(uap_challenge.decode(), password)
-            chall_resp_msg = {'key': uap_challenge.decode(), 'response': response}
+            chall_resp_msg = {'type': 3, 'key': uap_challenge.decode(), 'response': response}
 
-            async with session.post('http://localhost:8080/server/login.php?PHPSESSID='+ SESSION_ID, json=chall_resp_msg) as resp:
+            async with session.post(url+ SESSION_ID, json=chall_resp_msg) as resp:
                 post_response = await resp.text()
             
             challenge_json = json.loads(post_response)
-            challenge = challenge_json['key']
             response_from_server = challenge_json['response']
             print("JSON FROM PHP: ", challenge_json)
-            if challenge=="end of auth":
+            if challenge_json['type']==4:
                 valid_user_auth = verify_response(uap_response, response_from_server, valid_user_auth)
-                print("end of verification<<<<<<<<<<<")
+                valid_user_auth = challenge_json['auth'] & valid_user_auth
                 break
+            else:
+                challenge = challenge_json['key']
             
             # if responses dont match random responses will be sent in stead
             valid_user_auth = verify_response(uap_response, response_from_server, valid_user_auth)
@@ -116,13 +154,14 @@ async def challenge(email, password):
             print("------------------------------------------------")
     await session.close()
 
-    return valid_user_auth
+    print(">>>>>>>>>>>>>>end of verification<<<<<<<<<<<")
+    return valid_user_auth, SESSION_ID
 
 def verify_response(uap_response, response_from_server, valid_user_auth):
     if (uap_response != response_from_server) and (valid_user_auth == 1):
         print("invalid user<<<<<<<<<<<<<<<<<<<")
         return 0
-    return 1
+    return valid_user_auth
 
 def calc_response(challenge, password):
     if isinstance(challenge, str):
@@ -130,7 +169,6 @@ def calc_response(challenge, password):
     hashed_password = hashlib.md5(password.encode())
     kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),length=32, salt=challenge, iterations=500000, backend=default_backend())
     response = kdf.derive(hashed_password.hexdigest().encode('utf-8'))
-    #print(base64.b64encode(response))
 
     xor_result = base64.b64encode(response)[0] & 1
     #the chosen bit is a xor of all the response bits
@@ -162,7 +200,7 @@ async def startDiffieHellman():
 
     async with aiohttp.ClientSession() as session:
 
-        async with session.post('http://localhost:8080/server/login.php?PHPSESSID='+ SESSION_ID, json=req_json) as resp:
+        async with session.post(url+ SESSION_ID, json=req_json) as resp:
             post_response = await resp.text()
             print(post_response)
 

@@ -95,7 +95,7 @@ INSERT INTO `characters` (`name`, `photo`, `born`, `blood_status`, `marital_stat
 
 INSERT INTO `users` (`name`, `nickname`, `email`, `password`, `role`) VALUES
 ('isabel', 'bella.4', 'isabella@hotmail.com', 'a4a2d4153f5bf93107c23e2750f11336', 0),
-('joao', 'johny_03', 'john@gmail.com', '5788a97c728c710956e3d1f87c8429d4 	', 0),
+('joao', 'johny_03', 'john@gmail.com', '5788a97c728c710956e3d1f87c8429d4', 0),
 ('Liliana', 'lilimarta74', 'lili_martinha@gmail.com', 'e5862159d8c557f89a580e072b096f45', 1);
 
 INSERT INTO `comments` (`nickname`, `comm_date`, `text`, `charactere`) VALUES
