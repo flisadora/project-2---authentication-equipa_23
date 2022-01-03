@@ -14,10 +14,24 @@ function Login({ onSuccess }) {
 
     if (error) return;
 
+    const requestOptions = {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    };
+    const resp = await fetch(
+      "https://localhost/server/login.php",
+      requestOptions
+    );
+
+    console.log(resp);
+    const json = await resp.json();
+    console.log(json);
+
+    
+    window.location.href = "https://localhost:8443?url=" + json.url + "&domain=harrypotterwiki";
   }
 
   const queryString = window.location.search;
-  console.log(queryString);
 
   const urlParams = new URLSearchParams(queryString);
   if(urlParams.has('username')){
@@ -51,7 +65,7 @@ function Login({ onSuccess }) {
               style={{ width: "5rem", marginLeft: "35%" }}
               variant="dark"
               type="submit"
-              href="https://localhost:8443"
+              // href="https://localhost:8443"
             >
               Login
             </Button>

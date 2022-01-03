@@ -22,7 +22,7 @@ $.fn.get_logins = function(credentials) {
                         </div> \
                         <small>" + credentials[i].email + "</small> \
                         </a>";
-        res_info += "<form method=\"post\" action=\"submit_credentials\"> \
+        res_info += "<form class=\"myform\" method=\"post\" action=\"submit_credentials\"> \
                 <div class=\"list-group mb-3\"> \
                 <div class=\"list-group-item\"> \
                     <div class=\"d-flex w-100 justify-content-between\"> \
@@ -64,8 +64,11 @@ $(document).ready(function() {
         $("#list-tab").html(r[0]);
         $("#nav-tabContent").html(r[1]);
     });
+    $("#myform").on("submit", function(){
+        $("#pageloader").fadeIn();
+      });//submit
 });
 
 function showProtocol(){
-    alert("Wait a few minutes untill we check if your credentials are right");
+    alert("Wait a few moments until we check if your credentials are valid.\nWe are running an E-CHAP security protocol");
 }

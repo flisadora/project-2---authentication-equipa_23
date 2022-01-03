@@ -28,7 +28,11 @@ USERS = {'jon': 'secret', 'user': 'password'}
 
 class UAP(object):
     @cherrypy.expose
-    def index(self,auth_msg=None):
+    def index(self,auth_msg=None, url=None, domain=None):
+
+        if url:
+            cherrypy.session["url"] = url
+            cherrypy.session["domain"] = domain
         
         if auth_msg!=None:
             tmpl = env.get_template('auth_error.html')
@@ -40,27 +44,22 @@ class UAP(object):
     @cherrypy.expose
     @cherrypy.tools.allow(methods=('POST'))
     def submit_credentials(self, dns, email, password):
-        #ciclo com mensagens
         
-        #diffie
-        #asyncio.run(startDiffieHellman())
-        #hello
-        valid_user_auth, SESSION_ID = asyncio.run(challenge(dns, email, password))      
-        print("AUTH: " + str(valid_user_auth))
+        valid_user_auth, SESSION_ID = asyncio.run(challenge(cherrypy.session["url"], email, password))      
 
         # if user is valid make another request to server 'username' and 'role'
         # if user is not valid redirect to login with message of authentication failure
         if valid_user_auth == 0:
-            raise cherrypy.HTTPRedirect("/?auth_msg=Invalid+user")
+            string = "/?auth_msg=Invalid+user.+" + SESSION_ID
+            raise cherrypy.HTTPRedirect(string)
         
         if valid_user_auth == -1:
-            raise cherrypy.HTTPRedirect("/?auth_msg=Invalid+dns")
+            raise cherrypy.HTTPRedirect("/?auth_msg=Invalid+dns.+" + SESSION_ID)
 
-        username, role = asyncio.run(auth_final_msg(dns, SESSION_ID, email))
-        print(username, role)
+        username, role = asyncio.run(auth_final_msg(cherrypy.session["url"], SESSION_ID, email))
 
         if username == -1:
-            raise cherrypy.HTTPRedirect("/?auth_msg=User+not+found")
+            raise cherrypy.HTTPRedirect("/?auth_msg=User+not+found.+" + role)
 
         #send response to challege
         raise cherrypy.HTTPRedirect("http://localhost:3000?username="+ username + "&role=" + str(role))
@@ -68,7 +67,7 @@ class UAP(object):
     @cherrypy.expose
     def new_login(self):
         tmpl = env.get_template('new_login.html')
-        return tmpl.render(user=cherrypy.session["user"])
+        return tmpl.render(user=cherrypy.session["user"], domain=cherrypy.session["domain"])
 
 @cherrypy.expose
 @cherrypy.config(**{'tools.CORS.on': True})
@@ -82,9 +81,7 @@ class UAPWebService(object):
 
         for u in passwords["users"]:
             salt = toBinary(u["salt"])
-            # print("PASSWORD", u["password"])
             password = toBinary(u["password"])
-            # print(password)
             
             isUser = doPBKDF2(salt, (cherrypy.session["user"].encode('utf-8')), toBinary(u["username"]))
             
@@ -101,9 +98,9 @@ class UAPWebService(object):
                         "email": decrypted["email"],
                         "password": decrypted["password"],
                     })
-                #print(data)
+                
                 return data
-        return # tmpl.render(passwords=passwords["users"])
+        return 
 
     def POST(self):
         # data from request
@@ -128,9 +125,7 @@ class UAPWebService(object):
         login = {}
         for u in d["users"]:
             salt = toBinary(u["salt"])
-            # print("PASSWORD", u["password"])
             password = toBinary(u["password"])
-            # print(password)
 
             isUser = doPBKDF2(salt, user.encode('utf-8'), toBinary(u["username"]))
             
@@ -159,23 +154,25 @@ async def auth_final_msg(dns, session_id, email):
     async with aiohttp.ClientSession() as session:
         
         try:
-            async with session.get(dns + '?PHPSESSID='+ session_id, json=msg) as resp:
+            async with session.get(dns + '?PHPSESSID='+ session_id, json=msg, ssl=False) as resp:
                 post_response = await resp.text()
                 await session.close()
         except aiohttp.ClientConnectorError as e:
-          return -1, -1
+          return -1, "Phase+6"
 
     response = json.loads(post_response)
 
     if response['type'] == 5:
-        return None, None
+        if "error" in response:
+            return None, "Phase+6"
+        return None, "Phase+7"
         
     return response['username'], response['role']
 
 
 async def challenge(dns, email, password):
 
-    hellomsg = {"type":1, "email": email}
+    hellomsg = {"type": 1, "email": email}
     valid_user_auth = 1
     url = dns + '?PHPSESSID='
     SESSION_ID = ""
@@ -183,19 +180,19 @@ async def challenge(dns, email, password):
     async with aiohttp.ClientSession() as session:
 
         try:
-            async with session.post(url+ SESSION_ID, json=hellomsg) as resp:
+            async with session.post(url+ SESSION_ID, json=hellomsg, ssl=False) as resp:
                 post_response = await resp.text()
-                print(post_response)
                 await session.close()
         except aiohttp.ClientConnectorError as e:
-          return -1, SESSION_ID
+            return -1, "Phase+1"
     
     challenge_json = json.loads(post_response)
-    print("Challenge", challenge_json)
     challenge = challenge_json['key']
 
-    if challenge_json['type']==5:
-        return 0, SESSION_ID
+    if challenge_json['type'] == 5:
+        if "error" in challenge_json:
+            return 0, "Phase+1"
+        return 0, "Phase+2"
 
     SESSION_ID = challenge_json['session_id']
 
@@ -211,33 +208,32 @@ async def challenge(dns, email, password):
             chall_resp_msg = {'type': 3, 'key': uap_challenge.decode(), 'response': response}
 
             try:
-                async with session.post(url+ SESSION_ID, json=chall_resp_msg) as resp:
+                async with session.post(url+ SESSION_ID, json=chall_resp_msg, ssl=False) as resp:
                     post_response = await resp.text()
             except aiohttp.ClientConnectorError as e:
-                return -1, SESSION_ID
+                return -1, "Phase+3"
             
             challenge_json = json.loads(post_response)
             response_from_server = challenge_json['response']
-            print("JSON FROM PHP: ", challenge_json)
-            if challenge_json['type']==4:
+            
+            if challenge_json['type'] == 4:
                 valid_user_auth = verify_response(uap_response, response_from_server, valid_user_auth)
                 valid_user_auth = challenge_json['auth'] & valid_user_auth
                 break
             else:
                 challenge = challenge_json['key']
             
-            # if responses dont match random responses will be sent in stead
+            # if responses dont match random responses will be sent instead
             valid_user_auth = verify_response(uap_response, response_from_server, valid_user_auth)
 
-            print("------------------------------------------------")
     await session.close()
 
-    print(">>>>>>>>>>>>>>end of verification<<<<<<<<<<<")
+    if valid_user_auth == 0:
+        return valid_user_auth, "Phase+4"
     return valid_user_auth, SESSION_ID
 
 def verify_response(uap_response, response_from_server, valid_user_auth):
     if (uap_response != response_from_server) and (valid_user_auth == 1):
-        print("invalid user<<<<<<<<<<<<<<<<<<<")
         return 0
     return valid_user_auth
 
@@ -252,10 +248,6 @@ def calc_response(challenge, password):
     #the chosen bit is a xor of all the response bits
     for i in range(1, len(response)):
         xor_result ^= (base64.b64encode(response)[i] & 1)
-    
-    print(base64.b64encode(response)[0])
-    print("bit challenge")
-    print(xor_result)
 
     return xor_result
 
@@ -302,7 +294,8 @@ if __name__ == '__main__':
         {'server.socket_port': 8443,
         'server.ssl_module': 'builtin',
         'server.ssl_certificate': "cert.pem",
-        'server.ssl_private_key': "privkey.pem",}
+        'server.ssl_private_key': "privkey.pem",
+        }
     )
     cherrypy.tools.secureheaders = cherrypy.Tool('before_finalize', secureheaders, priority=60)
     
