@@ -14,45 +14,19 @@ function Login({ onSuccess }) {
 
     if (error) return;
 
-    // const body = {
-    //   email: e.target[0].value,
-    //   password: e.target[1].value,
-    // };
-    // console.log(body);
-
-    // const requestOptions = {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify(body),
-    // };
-    // const resp = await fetch(
-    //   "https://localhost:8080/server/login.php",
-    //   requestOptions
-    // );
-
-    // console.log(resp);
-    // const json = await resp.json();
-    // console.log(json);
-
-    // // The following code evaluates if the loggin is succesful or not (according to json's response)
-    // const status = json.loggedin;
-
-    // if (status) {
-    //   // From JSON's response : example
-    //   const store = {
-    //     username: json.username,
-    //     role: json.role,
-    //   };
-    //   localStorage.setItem("user", JSON.stringify(store));
-    //   onSuccess(store.username);
-    //   history.push("/characters");
-    // } else {
-    //   setError(true);
-    // }
   }
 
-  function handleChange() {
-    setError(false);
+  const queryString = window.location.search;
+  console.log(queryString);
+
+  const urlParams = new URLSearchParams(queryString);
+  if(urlParams.has('username')){
+    const store = {
+      username: urlParams.get('username'),
+      role: urlParams.get('role'),
+    };
+    localStorage.setItem("user", JSON.stringify(store));
+    history.push("/characters");
   }
 
   return (
@@ -69,30 +43,9 @@ function Login({ onSuccess }) {
     >
       <Card.Body>
         <Form onSubmit={handleSubmit}>
-          {/* <h1 className="form-title">Login</h1>
+          <h1 className="form-title">Login</h1>
           <p></p>
           <p></p>
-          <Form.Group className="mb-3" controlId="formBasicEmail">
-            <Form.Control
-              type="email"
-              placeholder="Email"
-              autoComplete="off"
-              onChange={handleChange}
-            />
-          </Form.Group>
-          <Form.Group className="mb-3" controlId="formBasicPassword">
-            <Form.Control
-              type="password"
-              placeholder="Password"
-              autoComplete="off"
-              onChange={handleChange}
-            />
-          </Form.Group>
-          {error && (
-            <p style={{ color: "red", fontWeight: "bold" }}>
-              Your credentials aren't correct!
-            </p>
-          )} */}
           <div className="form-controls">
             <Button
               style={{ width: "5rem", marginLeft: "35%" }}

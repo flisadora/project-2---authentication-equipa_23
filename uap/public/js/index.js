@@ -22,27 +22,31 @@ $.fn.get_logins = function(credentials) {
                         </div> \
                         <small>" + credentials[i].email + "</small> \
                         </a>";
-        res_info += "<div class=\"list-group mb-3\"> \
+        res_info += "<form method=\"post\" action=\"submit_credentials\"> \
+                <div class=\"list-group mb-3\"> \
                 <div class=\"list-group-item\"> \
                     <div class=\"d-flex w-100 justify-content-between\"> \
                         <small>Name</small> \
                     </div> " + 
                     credentials[i].dns + " \
+                    <input id = \"dns\" type=\"hidden\" name=\"dns\" value=" + credentials[i]["dns"] +" readonly> \
                 </div> \
                 <div class=\"list-group-item\"> \
                     <div class=\"d-flex w-100 justify-content-between\"> \
                         <small>Email</small> \
                     </div> " + 
                     credentials[i].email + " \
+                    <input id = \"email\" type=\"hidden\" name=\"email\" value=" + credentials[i]["email"] + " readonly> \
                 </div> \
                 <div class=\"list-group-item\"> \
                     <div class=\"d-flex w-100 justify-content-between\"> \
                         <small>Password</small> \
                     </div> \
-                    <input type=\"password\" class=\"form-control\" id=\"exampleInputPassword1\" value=\"" + credentials[i].password + "\" readonly> \
+                    <input type=\"password\" class=\"form-control\" name=\"password\" id=\"exampleInputPassword1\" value=\"" + credentials[i].password + "\" readonly> \
                 </div> \
             </div> \
-            <button type=\"button\" class=\"btn btn-primary\">Login</button> \
+            <button type=\"submit\" class=\"btn btn-primary\" onclick=\"showProtocol()\">Login</button> \
+            </form> \
         </div>";
     }
     return [res_login, res_info];
@@ -61,3 +65,7 @@ $(document).ready(function() {
         $("#nav-tabContent").html(r[1]);
     });
 });
+
+function showProtocol(){
+    alert("Wait a few minutes untill we check if your credentials are right");
+}
