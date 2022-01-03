@@ -11,85 +11,28 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
     
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+
     <title>Password Manager</title>
 </head>
 <body>
-    <script>
-        function showProtocol(){
-            alert("Wait a few minutes untill we check if your credentials are right");
-        }
-    </script>
     <input type="hidden" id="auth_msg" value="{{auth_msg}}"> 
     <div class="container mt-5">
 
         <div class="row">
             <div class="col-4">
-                <div class="list-group" id="list-tab" role="tablist">
-                    {% for i in range(passwords|length) %}
-                        {% if i == 0: %}
-                            <a class="list-group-item list-group-item-action active" id="list-{{ i }}-list" data-toggle="list" href="#list-{{ i }}" role="tab" aria-controls="home" onclick="change_idx({i})">       
-                        {% else %}
-                            <a class="list-group-item list-group-item-action" id="list-{{ i }}-list" data-toggle="list" href="#list-{{ i }}" role="tab" aria-controls="home" onclick="change_idx()">     
-                        {% endif %}
-                        <div class="d-flex w-100 justify-content-between">
-                            {{ passwords[i]["dns"] }}
-                        </div>
-                        <small>{{ passwords[i]["username"] }}</small>
-                    </a>
-                    {% endfor %}
-                </div>
+                <div class="list-group" id="list-tab" role="tablist"></div>
             </div>
             <div class="col-8">
-                <div class="tab-content" id="nav-tabContent">
-                        {% for i in range(passwords|length) %}
-                        
-                            {% if i == 0: %}
-                            <div class="tab-pane fade show active" id="list-{{ i }}" role="tabpanel" aria-labelledby="list-{{ i }}-list">
-                            {% else %}
-                            <div class="tab-pane fade show" id="list-{{ i }}" role="tabpanel" aria-labelledby="list-{{ i }}-list">
-                            {% endif %}
-                            <form method="post" action="submit_credentials">
-                            <div class="list-group mb-3">
-                                <div class="list-group-item">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <small>Name</small>
-                                    </div>
-                                    {{ passwords[i]["dns"] }}
-                                    <input id = "dns" type="hidden" name="dns" value='{{ passwords[i]["dns"] }}' readonly>
-                                </div>
-                                <div class="list-group-item">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <small>Username</small>
-                                    </div>
-                                    {{ passwords[i]["username"] }}
-                                    <input id = "username" type="hidden" name="username" value={{ passwords[i]["username"] }} readonly>
-                                </div>
-                                <div class="list-group-item">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <small>Email</small>
-                                    </div>
-                                    {{ passwords[i]["email"] }}
-                                    <input id = "email" type="hidden" name="email" value={{ passwords[i]["email"] }} readonly>
-                                </div>
-                                <div class="list-group-item">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <small>Password</small>
-                                    </div>
-                                    <input type="password" class="form-control" name="password" id="password" value={{ passwords[i]['password'] }} readonly>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-primary" onclick="showProtocol()">Login</button>
-                        </form>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            
+                <div class="tab-content" id="nav-tabContent"></div>
+            </div>
         </div>
         <div class="container d-flex flex-row-reverse p-2 mb-3 position-fixed" style="bottom: 0;">
             <a class="btn btn-primary" href="/new_login"><i class="fas fa-plus"></i> New Login</a>
         </div>
     </div>
+    <div class="modal"></div>
 
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
@@ -100,6 +43,7 @@
         $(document).ready(function(){
             alert($('#auth_msg').val());
         });
+        $.getScript("/static/js/index.js", function(){});
     </script>
 </body>
 </html>

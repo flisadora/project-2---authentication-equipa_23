@@ -44,6 +44,8 @@ function Login({ onSuccess }) {
       <Card.Body>
         <Form onSubmit={handleSubmit}>
           <h1 className="form-title">Login</h1>
+          <p></p>
+          <p></p>
           <div className="form-controls">
             <Button
               style={{ width: "5rem", marginLeft: "35%" }}

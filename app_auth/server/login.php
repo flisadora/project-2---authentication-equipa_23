@@ -1,9 +1,6 @@
 
 <?php
 //session_start();
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 include('connect.php');
 header('Access-Control-Allow-Origin: *');
 header("Access-Control-Allow-Methods: *");
@@ -24,34 +21,6 @@ header("Content-Type: text/html; charset=utf-8");
         6. username + role
         7. response username + role
     */
-
-function startDiffieHellman() {
-    // prime number
-    $P = 23;
-    // base 
-    $G = 5;
-        
-    $tempPrivateKey = random_int(2, $P-1);
-    //echo $tempPrivateKey;
-    
-    // shared key by UAP and app server
-    $publicKey = intval(fmod(pow($G, $tempPrivateKey), $P));
-    
-    // GET request
-    $respJSON = file_get_contents("php://input");
-    $resp = json_decode($respJSON);
-    $respObj = $resp->diffieHellman;
-
-    // app server private key
-    $privateKey = intval(fmod(pow(intval($respObj), $tempPrivateKey), $P));
-    
-    // POST request
-    $reqObj = array("diffieHellman"=>$publicKey);
-    $reqJSON = json_encode($reqObj);
-    echo $reqJSON;
-    
-    
-}
 
 function challenge($dbpass) {
     $key = utf8_encode(base64_encode(openssl_random_pseudo_bytes(16)));   

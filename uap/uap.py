@@ -1,19 +1,16 @@
+import os
+import re
 import cherrypy
-from cherrypy.lib import auth_digest
 import json
-import requests
 import asyncio
 import aiohttp
-#import requests_async as requests
-from random import randint
 from jinja2 import Environment, FileSystemLoader
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
+from encrypt import decryptDES, encryptDES, toBinary, doPBKDF2
 import hashlib
 import base64
-import os
-from Crypto.Cipher import AES
 env = Environment(loader=FileSystemLoader('templates'))
 
 '''
@@ -27,39 +24,18 @@ env = Environment(loader=FileSystemLoader('templates'))
     7. response username + role
 '''
 
-USERS = {'jon': 'secret'}
+USERS = {'jon': 'secret', 'user': 'password'}
 
 class UAP(object):
     @cherrypy.expose
-    def index(self, auth_msg=None):
-        with open("passwords.json", "r") as f:
-            passwords = json.load(f)
+    def index(self,auth_msg=None):
         
         if auth_msg!=None:
             tmpl = env.get_template('auth_error.html')
-            return tmpl.render(passwords=passwords, auth_msg=auth_msg)
+            return tmpl.render(auth_msg=auth_msg)
 
         tmpl = env.get_template('index.html')
-        return tmpl.render(passwords=passwords)
-
-    @cherrypy.expose
-    def new_login(self):
-        tmpl = env.get_template('new_login.html')
-        return tmpl.render(title="New Login")
-
-    @cherrypy.expose
-    @cherrypy.tools.allow(methods=('POST'))
-    def add_login(self, inputDns=None, inputEmail1=None, inputUsername=None, inputPassword=None):
-        f = open('passwords.json')
-        d = json.load(f)
-        f.close()
-        login = {"dns": inputDns, "username": inputUsername, "email": inputEmail1, "password": inputPassword}
-        d.append(login)
-        #d = json.dumps(d)
-        with open('passwords.json', 'w') as f:
-            json.dump(d, f)
-            # f.write(d)
-        raise cherrypy.HTTPRedirect("/")
+        return tmpl.render()
 
     @cherrypy.expose
     @cherrypy.tools.allow(methods=('POST'))
@@ -69,30 +45,126 @@ class UAP(object):
         #diffie
         #asyncio.run(startDiffieHellman())
         #hello
-        valid_user_auth, SESSION_ID = asyncio.run(challenge(email, password))      
+        valid_user_auth, SESSION_ID = asyncio.run(challenge(dns, email, password))      
         print("AUTH: " + str(valid_user_auth))
 
         # if user is valid make another request to server 'username' and 'role'
         # if user is not valid redirect to login with message of authentication failure
-        if not valid_user_auth:
+        if valid_user_auth == 0:
             raise cherrypy.HTTPRedirect("/?auth_msg=Invalid+user")
+        
+        if valid_user_auth == -1:
+            raise cherrypy.HTTPRedirect("/?auth_msg=Invalid+dns")
 
-        username, role = asyncio.run(auth_final_msg(SESSION_ID, email))
+        username, role = asyncio.run(auth_final_msg(dns, SESSION_ID, email))
         print(username, role)
+
+        if username == -1:
+            raise cherrypy.HTTPRedirect("/?auth_msg=User+not+found")
 
         #send response to challege
         raise cherrypy.HTTPRedirect("http://localhost:3000?username="+ username + "&role=" + str(role))
 
+    @cherrypy.expose
+    def new_login(self):
+        tmpl = env.get_template('new_login.html')
+        return tmpl.render(user=cherrypy.session["user"])
+
+@cherrypy.expose
+@cherrypy.config(**{'tools.CORS.on': True})
+@cherrypy.tools.json_in()
+@cherrypy.tools.json_out()
+class UAPWebService(object):
+
+    def GET(self):
+        with open("passwords.json", "r") as f:
+            passwords = json.load(f)
+
+        for u in passwords["users"]:
+            salt = toBinary(u["salt"])
+            # print("PASSWORD", u["password"])
+            password = toBinary(u["password"])
+            # print(password)
+            
+            isUser = doPBKDF2(salt, (cherrypy.session["user"].encode('utf-8')), toBinary(u["username"]))
+            
+            if isUser:
+                data = []
+                for cred in u["logins"]:
+                    nonce = toBinary(cred["salt"])
+                    values = cred
+                    del values["salt"]
+                    decrypted = decryptDES(nonce, password, values)
+                    
+                    data.append({
+                        "dns": decrypted["dns"],
+                        "email": decrypted["email"],
+                        "password": decrypted["password"],
+                    })
+                #print(data)
+                return data
+        return # tmpl.render(passwords=passwords["users"])
+
+    def POST(self):
+        # data from request
+        request = cherrypy.request.json
+        user = request["user"]
+        inputDns = request["inputDns"]
+        inputEmail1 = request["inputEmail1"]
+        inputPassword = request["inputPassword"]
+
+        # https://www.geeksforgeeks.org/check-if-email-address-valid-or-not-in-python/
+        email_regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+
+        if not inputDns or not inputEmail1 or not inputPassword:
+            return {"state": "Invalid values"}
+
+        if not re.fullmatch(email_regex, inputEmail1):
+            return {"state": "Invalid email"}
+
+        with open("passwords.json", "r") as f:
+            d = json.load(f)
+
+        login = {}
+        for u in d["users"]:
+            salt = toBinary(u["salt"])
+            # print("PASSWORD", u["password"])
+            password = toBinary(u["password"])
+            # print(password)
+
+            isUser = doPBKDF2(salt, user.encode('utf-8'), toBinary(u["username"]))
+            
+            if isUser:
+                values = {"dns": inputDns, "email": inputEmail1, "password": inputPassword}
+                res = encryptDES(password, values)
+
+                login["dns"] = res["dns"]
+                login["email"] = res["email"]
+                login["password"] = res["password"]
+                login["salt"] = res["salt"]
+                u["logins"].append(login)
+
+                # save new login
+                with open("passwords.json", "w") as f:
+                    json.dump(d, f)
+                return {"state": "success"}
+                # return tmpl.render(passwords=data)
+        return {"state": "Failed to Add New Login"}
+        
     
-async def auth_final_msg(session_id, email):
+async def auth_final_msg(dns, session_id, email):
 
     msg = {"type": 6, "email": email}
 
     async with aiohttp.ClientSession() as session:
+        
+        try:
+            async with session.get(dns + '?PHPSESSID='+ session_id, json=msg) as resp:
+                post_response = await resp.text()
+                await session.close()
+        except aiohttp.ClientConnectorError as e:
+          return -1, -1
 
-        async with session.get('http://localhost:8080/server/login.php?PHPSESSID='+ session_id, json=msg) as resp:
-            post_response = await resp.text()
-            await session.close()
     response = json.loads(post_response)
 
     if response['type'] == 5:
@@ -101,26 +173,29 @@ async def auth_final_msg(session_id, email):
     return response['username'], response['role']
 
 
-async def challenge(email, password):
+async def challenge(dns, email, password):
 
     hellomsg = {"type":1, "email": email}
     valid_user_auth = 1
-    url = 'http://localhost:8080/server/login.php?PHPSESSID='
+    url = dns + '?PHPSESSID='
     SESSION_ID = ""
 
     async with aiohttp.ClientSession() as session:
 
-        async with session.post(url+ SESSION_ID, json=hellomsg) as resp:
-            post_response = await resp.text()
-            print(post_response)
-            await session.close()
+        try:
+            async with session.post(url+ SESSION_ID, json=hellomsg) as resp:
+                post_response = await resp.text()
+                print(post_response)
+                await session.close()
+        except aiohttp.ClientConnectorError as e:
+          return -1, SESSION_ID
     
     challenge_json = json.loads(post_response)
     print("Challenge", challenge_json)
     challenge = challenge_json['key']
 
     if challenge_json['type']==5:
-        return 0
+        return 0, SESSION_ID
 
     SESSION_ID = challenge_json['session_id']
 
@@ -135,8 +210,11 @@ async def challenge(email, password):
             uap_response = calc_response(uap_challenge.decode(), password)
             chall_resp_msg = {'type': 3, 'key': uap_challenge.decode(), 'response': response}
 
-            async with session.post(url+ SESSION_ID, json=chall_resp_msg) as resp:
-                post_response = await resp.text()
+            try:
+                async with session.post(url+ SESSION_ID, json=chall_resp_msg) as resp:
+                    post_response = await resp.text()
+            except aiohttp.ClientConnectorError as e:
+                return -1, SESSION_ID
             
             challenge_json = json.loads(post_response)
             response_from_server = challenge_json['response']
@@ -181,44 +259,42 @@ def calc_response(challenge, password):
 
     return xor_result
 
-
-async def startDiffieHellman():
-    # prime number
-    P = 23
-    # base
-    G = 5
-    
-    temp_private_key = randint(2, P)
-    print(temp_private_key)
-
-    # shared key by UAP and app server
-    public_key =  int(pow(G,temp_private_key, P))
-
-    # POST request
-    req_json = {'diffieHellman' : public_key}
-    print(req_json)
-
-    async with aiohttp.ClientSession() as session:
-
-        async with session.post(url+ SESSION_ID, json=req_json) as resp:
-            post_response = await resp.text()
-            print(post_response)
-
-    resp_json = json.loads(post_response)
-
-    # uap private key
-    private_key = int(pow(int(resp_json['diffieHellman']), temp_private_key, P))
-    print(private_key)
-    return req_json
-        
-# TODO: ask password
-# TODO: encrypt data with password and salt
-
 def secureheaders():
     headers = cherrypy.response.headers
     headers['X-Frame-Options'] = 'DENY'
     headers['X-XSS-Protection'] = '1; mode=block'
     headers['Content-Security-Policy'] = "default-src='self'"
+
+def CORS():
+    if cherrypy.request.method == 'OPTIONS':
+        # preflign request 
+        # see http://www.w3.org/TR/cors/#cross-origin-request-with-preflight-0
+        cherrypy.response.headers['Access-Control-Allow-Methods'] = 'POST'
+        cherrypy.response.headers['Access-Control-Allow-Headers'] = 'content-type'
+        cherrypy.response.headers['Access-Control-Allow-Origin']  = '*'
+        # tell CherryPy no avoid normal handler
+        return True
+    else:
+        cherrypy.response.headers['Access-Control-Allow-Origin'] = '*'
+
+def checkpassword(realm, username, password):
+    with open("passwords.json") as credentials:
+        logins = json.load(credentials)
+        for u in logins["users"]:
+            salt = toBinary(u["salt"])
+            user = toBinary(u["username"])
+
+            isUser = doPBKDF2(salt, username.encode('utf-8'), user)
+            
+            if isUser:
+                passw = toBinary(u["password"])
+
+                isPassword = doPBKDF2(salt, password.encode('utf-8'), passw)
+                
+                if isPassword:
+                    cherrypy.session["user"] = username
+                    return True  
+    return False
 
 
 if __name__ == '__main__':
@@ -232,13 +308,30 @@ if __name__ == '__main__':
     
     conf = {
     '/': {
-        'tools.auth_digest.on': True,
-        'tools.auth_digest.realm': 'localhost',
-        'tools.auth_digest.get_ha1': auth_digest.get_ha1_dict_plain(USERS),
-        'tools.auth_digest.key': 'a565c27146791cfb',
+        'tools.CORS.on': True,
+        'tools.sessions.on': True,
+        'tools.auth_basic.on': True,
+        'tools.auth_basic.realm': 'localhost',
+        'tools.auth_basic.checkpassword': checkpassword,
         'tools.auth_basic.accept_charset': 'UTF-8',
         'tools.secureheaders.on': True,
+        'tools.response_headers.on': True,
+        'tools.staticdir.root': os.path.abspath(os.getcwd())
+        },
+    '/api': {
+        'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
+        'tools.response_headers.on': True,
+        'tools.response_headers.headers': [('Content-Type', 'application/json')],
+        },
+    '/static': {
+        'tools.staticdir.on': True,
+        'tools.staticdir.dir': './public'
         }
     }
     
-    cherrypy.quickstart(UAP(), "/", conf)
+    cherrypy.tools.secureheaders = cherrypy.Tool('before_handler', secureheaders)
+    cherrypy.tools.CORS = cherrypy.Tool('before_handler', CORS)
+
+    webapp = UAP()
+    webapp.api = UAPWebService()
+    cherrypy.quickstart(webapp, "/", conf)
