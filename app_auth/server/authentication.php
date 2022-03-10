@@ -34,7 +34,7 @@ function calc_response($key, $password) {
     $hashed_pass = $password;
     $algo = "sha256";
     $salt = utf8_encode($key);
-    $iterations = 500000;
+    $iterations = 5;
     $len = 32;
     $binary = True;
 

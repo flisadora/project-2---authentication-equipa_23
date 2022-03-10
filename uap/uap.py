@@ -241,7 +241,7 @@ def calc_response(challenge, password):
     if isinstance(challenge, str):
         challenge = challenge.encode('utf-8')
     hashed_password = hashlib.md5(password.encode())
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),length=32, salt=challenge, iterations=500000, backend=default_backend())
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),length=32, salt=challenge, iterations=5, backend=default_backend())
     response = kdf.derive(hashed_password.hexdigest().encode('utf-8'))
 
     xor_result = base64.b64encode(response)[0] & 1
